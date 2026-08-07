@@ -11,8 +11,27 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Standard API Security and Parsing Middlewares
-app.use(cors());
+// FIXED: Explicitly authorize your live Vercel and local environments
+const allowedOrigins = [
+  'http://localhost:3000', 
+  'https://vercel.app',
+  'https://vercel.app'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, postman, or health checks)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true
+}));
+
 app.use(express.json()); 
 
 // Attach our task management operational endpoints
