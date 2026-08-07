@@ -13,6 +13,10 @@ const pool = new Pool({
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT) || 5432,
     database: process.env.DB_NAME,
+    // FIXED: Enforce secure cloud SSL connection for Render production tables
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
 // Event listener to check if the connection to PostgreSQL is running smoothly
