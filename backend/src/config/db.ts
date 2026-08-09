@@ -24,36 +24,37 @@ const pool = isLocal
       ssl: { rejectUnauthorized: false },
     });
 
-// AUTOMATIC TABLE CREATOR: Run a query immediately on pool startup to secure tables
-const initializeDatabase = async () => {
-  try {
-    console.log('🔄 Checking database table structures inside cloud cluster...');
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS tasks (
-        id SERIAL PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
-        description TEXT,
-        priority VARCHAR(50) DEFAULT 'Medium',
-        status VARCHAR(50) DEFAULT 'Todo',
-        created_at TIMESTAMP DEFAULT NOW()
-      );
-    `);
-    console.log('✅ Production "tasks" table is successfully verified and ready!');
-  } catch (err: any) {
-    console.error('❌ Failed to run startup table initialization migrations:', err.message);
+// CRITICAL FIX: Make the migration check run on immediate client connection with strict type safety
+pool.connect((err, client, release) => {
+  if (err) {
+    return console.error('❌ Database connection failure during startup initialization:', err.stack);
   }
-};
-
-// Event listener to check if the connection to PostgreSQL is running smoothly
-pool.on('connect', () => {
-  console.log('🗄️  PostgreSQL Database connected successfully!');
+  
+  // FIXED: Safety check to satisfy TypeScript compiler
+  if (!client) {
+    return console.error('❌ Database client connection is undefined.');
+  }
+  
+  console.log('🗄️ Connected to PostgreSQL. Verifying table structure...');
+  
+  client.query(`
+    CREATE TABLE IF NOT EXISTS tasks (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      description TEXT,
+      priority VARCHAR(50) DEFAULT 'Medium',
+      status VARCHAR(50) DEFAULT 'Todo',
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `, (queryErr) => {
+    release(); // Return the connection back to the pool
+    
+    if (queryErr) {
+      console.error('❌ Failed to run table schema creation:', queryErr.stack);
+    } else {
+      console.log('✅ Production "tasks" table is successfully verified, built, and ready!');
+    }
+  });
 });
-
-pool.on('error', (err) => {
-  console.error('❌ Unexpected database pool connection failure:', err);
-});
-
-// Run table initializations right now
-initializeDatabase();
 
 export default pool;
