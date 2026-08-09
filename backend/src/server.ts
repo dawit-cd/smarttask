@@ -47,11 +47,25 @@ app.get('/api/health', (req: Request, res: Response) => {
 });
 
 // Boot the Server engine up
+// Boot the Server engine up
 app.listen(PORT, async () => {
   console.log(`🚀 Server running happily on http://localhost:${PORT}`);
 
-  // Quick validation check to confirm database responsiveness on boot
+  // AUTOMATIC FIX: Automatically create the tables on startup if they don't exist
   try {
+    console.log('🔄 Verifying database table structures...');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        priority VARCHAR(50) DEFAULT 'Medium',
+        status VARCHAR(50) DEFAULT 'Todo',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    console.log('✅ Database table validation complete!');
+    
     const result = await pool.query('SELECT NOW()');
     console.log(`⏱️  Database time check: ${result.rows[0].now}`);
   } catch (err: any) {
