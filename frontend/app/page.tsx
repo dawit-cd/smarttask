@@ -39,7 +39,7 @@ interface Task {
 
 export default function Dashboard() {
   // Configured inside component scope so browser components read Next.js environment maps properly
-  const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://onrender.com";
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,9 +60,13 @@ export default function Dashboard() {
         );
         const res = await fetch(`${BASE_URL}/api/tasks`);
         const data = await res.json();
-        if (active) setTasks(data);
+        if (active) {
+          // FIXED: Safeguard state initialization by enforcing array verification on payload
+          setTasks(Array.isArray(data) ? data : []);
+        }
       } catch (err) {
         console.error("Failed to load backend task data:", err);
+        if (active) setTasks([]);
       } finally {
         if (active) setLoading(false);
       }
@@ -93,7 +97,8 @@ export default function Dashboard() {
 
         const refreshRes = await fetch(`${BASE_URL}/api/tasks`);
         const freshData = await refreshRes.json();
-        setTasks(freshData);
+        // FIXED: Ensure array formatting during live sync updates
+        setTasks(Array.isArray(freshData) ? freshData : []);
       }
     } catch (err) {
       console.error("Failed to create task record:", err);
@@ -108,13 +113,13 @@ export default function Dashboard() {
       });
 
       if (res.ok) {
-        setTasks((prev) => prev.filter((task) => task.id !== id));
+        setTasks((prev) => (Array.isArray(prev) ? prev.filter((task) => task.id !== id) : []));
       }
     } catch (err) {
       console.error("Failed to delete task:", err);
     }
   };
-  return (
+    return (
     <div className="min-h-screen bg-slate-50/70 dark:bg-zinc-950 pb-20 font-sans selection:bg-blue-500/20">
       {/* Decorative colored glow on top of page background */}
       <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-blue-500/5 to-transparent pointer-events-none" />
@@ -201,8 +206,7 @@ export default function Dashboard() {
             </DialogContent>
           </Dialog>
         </div>
-
-        {/* Main Work Content Card */}
+           {/* Main Work Content Card */}
         <Card className="shadow-lg border border-slate-100 bg-white dark:bg-zinc-900 overflow-hidden rounded-2xl shadow-slate-100/60 dark:shadow-none">
           <CardHeader className="border-b border-slate-100 bg-slate-50/30 dark:bg-zinc-900/50 px-8 py-6">
             <CardTitle className="text-xl font-bold text-slate-900 dark:text-white">
@@ -220,7 +224,7 @@ export default function Dashboard() {
                   Synchronizing secure relational database tables...
                 </p>
               </div>
-            ) : tasks.length === 0 ? (
+            ) : !Array.isArray(tasks) || tasks.length === 0 ? (
               <div className="text-center py-24 px-4 space-y-4">
                 <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto text-xl font-bold">
                   ✓
@@ -259,7 +263,8 @@ export default function Dashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {tasks.map((task) => (
+                    {/* FIXED: Added array wrapper filter check to isolate structure from runtime exceptions */}
+                    {Array.isArray(tasks) && tasks.map((task) => (
                       <TableRow
                         key={task.id}
                         className="hover:bg-blue-50/20 dark:hover:bg-zinc-800/10 transition-colors border-b border-slate-100 last:border-0 group"
@@ -294,7 +299,6 @@ export default function Dashboard() {
                           {task.status || "Todo"}
                         </TableCell>
                         <TableCell className="text-right pr-8 py-5">
-                          {/* FIXED: Removed md:opacity-0 and group-hover:opacity-100 so it stays visible */}
                           <Button
                             onClick={() => handleDelete(task.id)}
                             variant="ghost"
