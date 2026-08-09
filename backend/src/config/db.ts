@@ -24,35 +24,46 @@ const pool = isLocal
       ssl: { rejectUnauthorized: false },
     });
 
-// CRITICAL FIX: Make the migration check run on immediate client connection with strict type safety
+// CRITICAL FIX: Build user dependencies and multi-table column mapping migrations synchronously
 pool.connect((err, client, release) => {
   if (err) {
     return console.error('❌ Database connection failure during startup initialization:', err.stack);
   }
   
-  // FIXED: Safety check to satisfy TypeScript compiler
   if (!client) {
     return console.error('❌ Database client connection is undefined.');
   }
   
-  console.log('🗄️ Connected to PostgreSQL. Verifying table structure...');
+  console.log('🗄️ Connected to PostgreSQL. Migrating full user and task relationship tables...');
   
-  client.query(`
+  // Step 1: Create a core users table to map assignee associations cleanly
+  // Step 2: Create tasks table with full user_id mapping constraints
+  const setupSchemaQuery = `
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+
     CREATE TABLE IF NOT EXISTS tasks (
       id SERIAL PRIMARY KEY,
       title VARCHAR(255) NOT NULL,
       description TEXT,
-      priority VARCHAR(50) DEFAULT 'Medium',
       status VARCHAR(50) DEFAULT 'Todo',
+      priority VARCHAR(50) DEFAULT 'Medium',
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
       created_at TIMESTAMP DEFAULT NOW()
     );
-  `, (queryErr) => {
+  `;
+  
+  client.query(setupSchemaQuery, (queryErr) => {
     release(); // Return the connection back to the pool
     
     if (queryErr) {
-      console.error('❌ Failed to run table schema creation:', queryErr.stack);
+      console.error('❌ Failed to construct advanced relational schema:', queryErr.stack);
     } else {
-      console.log('✅ Production "tasks" table is successfully verified, built, and ready!');
+      console.log('✅ Advanced multi-table workspace database schema is verified and ready!');
     }
   });
 });
