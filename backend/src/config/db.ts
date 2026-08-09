@@ -24,7 +24,7 @@ const pool = isLocal
       ssl: { rejectUnauthorized: false },
     });
 
-// CRITICAL FIX: Build user dependencies and multi-table column mapping migrations synchronously
+// CRITICAL CONFIG: Build user dependencies and multi-table column mapping migrations safely
 pool.connect((err, client, release) => {
   if (err) {
     return console.error('❌ Database connection failure during startup initialization:', err.stack);
@@ -34,13 +34,10 @@ pool.connect((err, client, release) => {
     return console.error('❌ Database client connection is undefined.');
   }
   
-  console.log('🗄️ Connected to PostgreSQL. Wiping legacy locked tables and rebuilding relational structures...');
+  console.log('🗄️ Connected to PostgreSQL. Ensuring production database schemas exist...');
   
-  // FIXED: Drop old tables first to wipe out structural blocks, then create them correctly
+  // SAFE PERSISTENCE: Reverted to CREATE TABLE IF NOT EXISTS without dropping data
   const setupSchemaQuery = `
-    DROP TABLE IF EXISTS tasks CASCADE;
-    DROP TABLE IF EXISTS users CASCADE;
-
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
       name VARCHAR(255) NOT NULL,
