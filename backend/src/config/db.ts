@@ -20,10 +20,29 @@ const pool = isLocal
       ssl: false,
     })
   : new Pool({
-      // FIXED: Use Render's single connection string variable in production
       connectionString: process.env.DATABASE_URL,
       ssl: { rejectUnauthorized: false },
     });
+
+// AUTOMATIC TABLE CREATOR: Run a query immediately on pool startup to secure tables
+const initializeDatabase = async () => {
+  try {
+    console.log('🔄 Checking database table structures inside cloud cluster...');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        priority VARCHAR(50) DEFAULT 'Medium',
+        status VARCHAR(50) DEFAULT 'Todo',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    console.log('✅ Production "tasks" table is successfully verified and ready!');
+  } catch (err: any) {
+    console.error('❌ Failed to run startup table initialization migrations:', err.message);
+  }
+};
 
 // Event listener to check if the connection to PostgreSQL is running smoothly
 pool.on('connect', () => {
@@ -33,5 +52,8 @@ pool.on('connect', () => {
 pool.on('error', (err) => {
   console.error('❌ Unexpected database pool connection failure:', err);
 });
+
+// Run table initializations right now
+initializeDatabase();
 
 export default pool;
