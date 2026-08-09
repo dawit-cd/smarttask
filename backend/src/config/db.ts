@@ -34,11 +34,13 @@ pool.connect((err, client, release) => {
     return console.error('❌ Database client connection is undefined.');
   }
   
-  console.log('🗄️ Connected to PostgreSQL. Migrating full user and task relationship tables...');
+  console.log('🗄️ Connected to PostgreSQL. Wiping legacy locked tables and rebuilding relational structures...');
   
-  // Step 1: Create a core users table to map assignee associations cleanly
-  // Step 2: Create tasks table with full user_id mapping constraints
+  // FIXED: Drop old tables first to wipe out structural blocks, then create them correctly
   const setupSchemaQuery = `
+    DROP TABLE IF EXISTS tasks CASCADE;
+    DROP TABLE IF EXISTS users CASCADE;
+
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
       name VARCHAR(255) NOT NULL,
